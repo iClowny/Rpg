@@ -1,11 +1,20 @@
 {
-  "name": "RPG Terras Perdidas",
-  "short_name": "RPG",
-  "start_url": "index.html",
+  "name": "RPG Clown",
+  "short_name": "ClownRPG",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#111111",
+  "background_color": "#111",
+  "theme_color": "#222",
   "icons": [
-    { "src": "icon.png", "sizes": "192x192", "type": "image/png" }
+    {
+      "src": "https://via.placeholder.com/192/FF0000/FFFFFF?text=CLOWN",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/FF0000/FFFFFF?text=CLOWN",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
