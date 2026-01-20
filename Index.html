@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG Terras Perdidas</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body { background:#0d0d0d; color:#fff; font-family:Arial; text-align:center }
+button { width:90%; padding:12px; margin:6px; font-size:16px }
+#map { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin:10px }
+.tile { padding:12px; border:1px solid #444 }
+.player { background:#2ecc71 }
+.enemy { background:#e74c3c }
+.boss { background:#8e44ad }
+</style>
+</head>
+<body>
+
+<h2>🗺️ RPG Terras Perdidas</h2>
+<p id="text"></p>
+
+<div id="map"></div>
+<div id="buttons"></div>
+
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+
+let player = JSON.parse(localStorage.getItem("player")) || null;
+let pos = JSON.parse(localStorage.getItem("pos")) || 0;
+
+const map = [
+ "P","E",".",".","E",
+ ".",".","E",".",".",
+ ".","E",".","E",".",
+ ".",".",".",".",".",
+ "E",".",".","B","."
+];
+
+function save() {
+ localStorage.setItem("player", JSON.stringify(player));
+ localStorage.setItem("pos", JSON.stringify(pos));
+}
+
+function setButtons(btns){
+ const div=document.getElementById("buttons");
+ div.innerHTML="";
+ btns.forEach(b=>{
+  const btn=document.createElement("button");
+  btn.innerText=b.text;
+  btn.onclick=b.action;
+  div.appendChild(btn);
+ });
+}
+
+function drawMap(){
+ const div=document.getElementById("map");
+ div.innerHTML="";
+ map.forEach((t,i)=>{
+  const d=document.createElement("div");
+  d.className="tile";
+  if(i===pos)d.classList.add("player");
+  if(t==="E")d.classList.add("enemy");
+  if(t==="B")d.classList.add("boss");
+  div.appendChild(d);
+ });
+}
+
+function chooseClass(c){
+ if(c==="Guerreiro")player={hp:120,atk:15,inv:["Poção"],max:120};
+ if(c==="Mago")player={hp:90,atk:22,inv:["Poção"],max:90};
+ if(c==="Arqueiro")player={hp:100,atk:18,inv:["Poção"],max:100};
+ save(); game();
+}
+
+function game(){
+ drawMap();
+ update(`❤️ ${player.hp}/${player.max} | 🎒 ${player.inv.join(", ")}`);
+ setButtons([
+  {text:"⬅️",action:()=>move(-1)},
+  {text:"➡️",action:()=>move(1)},
+  {text:"⬆️",action:()=>move(-5)},
+  {text:"⬇️",action:()=>move(5)},
+  {text:"🧪 Usar Poção",action:usePotion}
+ ]);
+}
+
+function move(n){
+ let newPos=pos+n;
+ if(newPos<0||newPos>=map.length)return;
+ pos=newPos;
+ if(map[pos]==="E") battle(false);
+ if(map[pos]==="B") battle(true);
+ save(); game();
+}
+
+function usePotion(){
+ const i=player.inv.indexOf("Poção");
+ if(i>-1){
+  player.hp=Math.min(player.hp+30,player.max);
+  player.inv.splice(i,1);
+  save(); game();
+ }
+}
+
+function battle(isBoss){
+ let enemy=isBoss?
+  {hp:160,atk:20,phase:1}:
+  {hp:60,atk:10};
+
+ while(enemy.hp>0 && player.hp>0){
+  enemy.hp-=player.atk;
+  if(enemy.hp<=0)break;
+
+  // IA do chefe
+  if(isBoss && enemy.hp<80 && enemy.phase===1){
+    enemy.atk+=10; enemy.phase=2;
+  }
+
+  player.hp-=enemy.atk;
+ }
+
+ if(player.hp<=0){
+  localStorage.clear();
+  location.reload();
+ }else{
+  map[pos]=".";
+  if(Math.random()>0.5)player.inv.push("Poção");
+ }
+ save();
+}
+
+function update(t){ document.getElementById("text").innerText=t }
+
+if(!player){
+ setButtons([
+  {text:"🛡️ Guerreiro",action:()=>chooseClass("Guerreiro")},
+  {text:"🔥 Mago",action:()=>chooseClass("Mago")},
+  {text:"🏹 Arqueiro",action:()=>chooseClass("Arqueiro")}
+ ]);
+ update("Escolha sua classe");
+}else game();
+</script>
+</body>
+</html>
