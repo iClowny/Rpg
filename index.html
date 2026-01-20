@@ -3,310 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RPG Clown - Versão Corrigida</title>
+    <title>RPG Clown - Pixel Adventure</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
         body {
-            margin: 0;
-            background-color: #222; /* Fundo cinza escuro para diferenciar do canvas preto */
-            font-family: 'Press Start 2P', monospace;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            background-color: #121212;
             color: white;
+            font-family: 'VT323', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* Importante para mobile */
         }
 
-        #game-container {
+        #game-border {
+            border: 8px solid #4a4a4a;
+            border-radius: 4px;
+            box-shadow: 0 0 20px #000;
             position: relative;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            line-height: 0; /* Remove espaços extras */
         }
 
         canvas {
-            display: block;
-            background-color: #1a1a1a; /* Cor de fundo do canvas */
-            image-rendering: pixelated;
+            image-rendering: pixelated; /* Deixa os pixels nítidos */
+            background-color: #000;
         }
 
-        /* UI */
-        .ui-overlay {
+        /* Interface Sobreposta */
+        .ui-layer {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             pointer-events: none;
-            padding: 10px;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            padding: 8px;
+            box-sizing: border-box;
         }
 
-        .hud-text {
-            font-size: 12px;
-            text-shadow: 2px 2px 0 #000;
-            color: #fff;
-            background: rgba(0,0,0,0.5);
-            padding: 5px;
-            border-radius: 4px;
-        }
-
-        /* Botões Mobile */
-        #mobile-controls {
-            display: none; /* Ativa via JS */
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            pointer-events: auto;
-            z-index: 100;
-        }
-        
-        .d-btn {
-            width: 48px; height: 48px;
-            background: rgba(255, 255, 255, 0.2);
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.7);
             border: 2px solid #fff;
-            color: white;
+            padding: 5px 10px;
             font-size: 20px;
-            margin: 2px;
-            cursor: pointer;
+            text-shadow: 1px 1px 0 #000;
         }
-        .d-btn:active { background: rgba(255,0,0,0.5); }
 
-        /* Tela de Combate */
-        #combat-modal {
+        /* Controles Mobile */
+        #mobile-controls {
             display: none;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            height: 60%;
-            background: #2a0a0a;
-            border: 4px solid #f00;
-            z-index: 50;
-            pointer-events: auto;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            box-shadow: 0 0 0 100vw rgba(0,0,0,0.8);
+            margin-top: 20px;
         }
+        .d-pad-row { display: flex; justify-content: center; gap: 10px; margin: 5px; }
+        .btn {
+            width: 60px; height: 60px;
+            background: #333;
+            border: 2px solid #666;
+            border-radius: 8px;
+            color: white;
+            font-size: 24px;
+            font-family: inherit;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .btn:active { background: #d32f2f; border-color: #fff; }
 
-        .btn-action {
-            margin-top: 10px;
-            padding: 10px;
+        /* Dialogo e Combate */
+        #message-box {
+            position: absolute;
+            bottom: 10px; left: 10px; right: 10px;
             background: #fff;
             color: #000;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
+            border: 4px double #000;
+            padding: 10px;
+            font-size: 18px;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <canvas id="gameCanvas" width="480" height="352"></canvas>
+    <div id="game-border">
+        <canvas id="cvs"></canvas>
         
-        <div class="ui-overlay">
-            <div class="hud-text" id="stats">Carregando...</div>
-            <div id="log" class="hud-text" style="align-self: flex-start; margin-top: auto; margin-bottom: 80px; color: #aaa;">Use Setas ou WASD</div>
-        </div>
-
-        <div id="mobile-controls">
-            <div style="text-align:center"><button class="d-btn" onclick="Game.input('ArrowUp')">▲</button></div>
-            <div>
-                <button class="d-btn" onclick="Game.input('ArrowLeft')">◀</button>
-                <button class="d-btn" onclick="Game.input('ArrowDown')">▼</button>
-                <button class="d-btn" onclick="Game.input('ArrowRight')">▶</button>
+        <div class="ui-layer">
+            <div class="hud-panel">
+                <span id="ui-hp" style="color:#ff4444">HP: 100</span> | 
+                <span id="ui-lvl" style="color:#44ff44">LVL: 1</span>
             </div>
+            <div id="message-box"></div>
         </div>
+    </div>
 
-        <div id="combat-modal">
-            <h2 style="color: red; margin: 10px;">INIMIGO!</h2>
-            <div id="enemy-visual" style="width: 50px; height: 50px; background: red; margin: 10px auto;"></div>
-            <p id="combat-msg">Um monstro apareceu.</p>
-            <p id="enemy-hp">HP: ???</p>
-            <button class="btn-action" onclick="Game.combat.attack()">ATACAR</button>
-            <button class="btn-action" onclick="Game.combat.flee()">FUGIR</button>
+    <div id="mobile-controls">
+        <div class="d-pad-row">
+            <button class="btn" ontouchstart="Input.move(0, -1)" onmousedown="Input.move(0, -1)">▲</button>
+        </div>
+        <div class="d-pad-row">
+            <button class="btn" ontouchstart="Input.move(-1, 0)" onmousedown="Input.move(-1, 0)">◀</button>
+            <button class="btn" ontouchstart="Input.action()" style="background:#882222">⚔️</button>
+            <button class="btn" ontouchstart="Input.move(1, 0)" onmousedown="Input.move(1, 0)">▶</button>
+        </div>
+        <div class="d-pad-row">
+            <button class="btn" ontouchstart="Input.move(0, 1)" onmousedown="Input.move(0, 1)">▼</button>
         </div>
     </div>
 
 <script>
-// --- CONFIGURAÇÃO E ENGINE ---
+/**
+ * RPG CLOWN - SPRITE EDITION
+ */
+
 const CFG = {
-    TILE: 32,
-    W: 15, // Largura em tiles da tela
-    H: 11, // Altura em tiles da tela
-    MAP_W: 50,
-    MAP_H: 50
+    TILE: 32,      // Tamanho do tile em pixels
+    W: 11,         // Largura da visão (em tiles)
+    H: 9,          // Altura da visão
+    MAP_S: 40      // Tamanho total do mapa
 };
 
-// --- ESTADO GLOBAL ---
-const State = {
-    player: { x: 5, y: 5, hp: 100, maxHp: 100, lvl: 1, xp: 0 },
-    map: [],
-    mode: 'EXPLORE', // EXPLORE ou COMBAT
-    currentEnemy: null
-};
-
-// --- SISTEMA DE MAPA ---
-const Map = {
-    init: function() {
-        // Gera um mapa simples
-        State.map = [];
-        for(let y=0; y<CFG.MAP_H; y++) {
-            State.map[y] = [];
-            for(let x=0; x<CFG.MAP_W; x++) {
-                // Bordas são paredes (1), Meio é grama (0)
-                if(x===0 || x===CFG.MAP_W-1 || y===0 || y===CFG.MAP_H-1) {
-                    State.map[y][x] = 1; 
-                } else {
-                    // 10% de chance de parede aleatória
-                    State.map[y][x] = Math.random() < 0.1 ? 1 : 0;
-                }
-            }
-        }
-        // Boss na posição 10,10 (Tile tipo 3)
-        State.map[10][10] = 3; 
+// --- ARTE PIXELADA (Desenhada via código) ---
+const Sprites = {
+    drawClown: function(ctx, x, y) {
+        const p = 4; // pixel size relativo (32px tile / 8x8 grid)
+        // Cabelo Azul
+        ctx.fillStyle = "#00f";
+        ctx.fillRect(x, y, 32, 12);
+        // Rosto Branco
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(x+4, y+8, 24, 20);
+        // Olhos
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x+8, y+14, 4, 4);
+        ctx.fillRect(x+20, y+14, 4, 4);
+        // Nariz Vermelho
+        ctx.fillStyle = "#f00";
+        ctx.beginPath(); ctx.arc(x+16, y+20, 3, 0, Math.PI*2); ctx.fill();
+        // Boca
+        ctx.strokeStyle = "#f00";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x+16, y+22, 6, 0.2, 2.9); ctx.stroke();
     },
-    isWall: function(x, y) {
-        if(x<0 || y<0 || x>=CFG.MAP_W || y>=CFG.MAP_H) return true;
-        return State.map[y][x] === 1;
+    drawWall: function(ctx, x, y) {
+        ctx.fillStyle = "#4a4a4a"; // Fundo cinza
+        ctx.fillRect(x, y, 32, 32);
+        ctx.fillStyle = "#333"; // Tijolos
+        ctx.fillRect(x+2, y+2, 12, 10);
+        ctx.fillRect(x+18, y+2, 12, 10);
+        ctx.fillRect(x+2, y+16, 8, 10);
+        ctx.fillRect(x+14, y+16, 12, 10);
+    },
+    drawGrass: function(ctx, x, y) {
+        ctx.fillStyle = "#2e8b57"; // Verde base
+        ctx.fillRect(x, y, 32, 32);
+        ctx.fillStyle = "#3cb371"; // Grama clara
+        // Pontinhos de grama
+        ctx.fillRect(x+5, y+5, 4, 4);
+        ctx.fillRect(x+20, y+10, 4, 4);
+        ctx.fillRect(x+10, y+25, 4, 4);
+    },
+    drawBoss: function(ctx, x, y) {
+        ctx.fillStyle = "#4B0082"; // Roxo escuro
+        ctx.beginPath();
+        ctx.arc(x+16, y+16, 14, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#fff"; // Olhos tristes
+        ctx.fillRect(x+10, y+12, 4, 2);
+        ctx.fillRect(x+18, y+12, 4, 2);
     }
 };
 
-// --- RENDERIZADOR (GRÁFICOS) ---
-const Draw = {
-    ctx: null,
-    init: function() {
-        const cvs = document.getElementById('gameCanvas');
-        this.ctx = cvs.getContext('2d');
-        // Força tamanho correto
-        cvs.width = CFG.TILE * CFG.W;
-        cvs.height = CFG.TILE * CFG.H;
-    },
-    
-    render: function() {
-        if(State.mode !== 'EXPLORE') return;
+// --- ESTADO DO JOGO ---
+const State = {
+    player: { x: 5, y: 5, hp: 100, maxHp: 100, lvl: 1 },
+    map: [],
+    explored: [], // Para neblina
+    msgs: [],
+    isCombat: false
+};
 
+// --- SISTEMA ---
+const Game = {
+    canvas: null,
+    ctx: null,
+
+    init: function() {
+        this.canvas = document.getElementById('cvs');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Ajusta tamanho
+        this.canvas.width = CFG.TILE * CFG.W;
+        this.canvas.height = CFG.TILE * CFG.H;
+
+        // Gera Mapa
+        this.genMap();
+
+        // Detecta Mobile
+        if ('ontouchstart' in window || navigator.maxTouchPoints) {
+            document.getElementById('mobile-controls').style.display = 'block';
+        }
+
+        // Teclado
+        window.addEventListener('keydown', (e) => {
+            if (e.key === "ArrowUp" || e.key === "w") Input.move(0, -1);
+            if (e.key === "ArrowDown" || e.key === "s") Input.move(0, 1);
+            if (e.key === "ArrowLeft" || e.key === "a") Input.move(-1, 0);
+            if (e.key === "ArrowRight" || e.key === "d") Input.move(1, 0);
+            if (e.key === " " || e.key === "Enter") Input.action();
+        });
+
+        this.updateView();
+    },
+
+    genMap: function() {
+        for(let y=0; y<CFG.MAP_S; y++) {
+            State.map[y] = [];
+            State.explored[y] = [];
+            for(let x=0; x<CFG.MAP_S; x++) {
+                // Bordas
+                if(x===0 || x===CFG.MAP_S-1 || y===0 || y===CFG.MAP_S-1) {
+                    State.map[y][x] = 1; // Parede
+                } else {
+                    // 15% parede, 85% chão
+                    State.map[y][x] = Math.random() < 0.15 ? 1 : 0;
+                }
+                State.explored[y][x] = false;
+            }
+        }
+        // Área inicial limpa
+        State.map[5][5] = 0;
+        State.map[5][6] = 0;
+        
+        // Boss
+        State.map[15][15] = 3; 
+    },
+
+    updateView: function() {
         const ctx = this.ctx;
         const p = State.player;
-        
-        // Limpa a tela
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        // Calcula offset da câmera (para o player ficar no centro)
+        // Limpa
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Câmera
         const camX = p.x - Math.floor(CFG.W / 2);
         const camY = p.y - Math.floor(CFG.H / 2);
 
-        // Desenha o Mapa Visível
         for(let y = 0; y < CFG.H; y++) {
             for(let x = 0; x < CFG.W; x++) {
-                const worldX = camX + x;
-                const worldY = camY + y;
+                const wx = camX + x;
+                const wy = camY + y;
 
-                if(worldX >= 0 && worldX < CFG.MAP_W && worldY >= 0 && worldY < CFG.MAP_H) {
-                    const tile = State.map[worldY][worldX];
-                    
-                    // Cores dos Tiles
-                    if(tile === 1) ctx.fillStyle = "#555"; // Parede (Cinza)
-                    else if(tile === 3) ctx.fillStyle = "#505"; // Boss (Roxo)
-                    else ctx.fillStyle = "#2e8b57"; // Grama (Verde)
-
-                    ctx.fillRect(x * CFG.TILE, y * CFG.TILE, CFG.TILE, CFG.TILE);
-                    
-                    // Borda do tile para facilitar visualização
-                    ctx.strokeStyle = "rgba(0,0,0,0.2)";
-                    ctx.strokeRect(x * CFG.TILE, y * CFG.TILE, CFG.TILE, CFG.TILE);
-                }
-            }
-        }
-
-        // Desenha o Player (O PALHAÇO)
-        // O player está sempre no centro da tela (relativo à câmera)
-        const screenX = (p.x - camX) * CFG.TILE;
-        const screenY = (p.y - camY) * CFG.TILE;
-
-        // Corpo
-        ctx.fillStyle = "#FFF";
-        ctx.fillRect(screenX + 4, screenY + 4, 24, 24);
-        // Nariz
-        ctx.fillStyle = "#F00";
-        ctx.beginPath();
-        ctx.arc(screenX + 16, screenY + 16, 5, 0, Math.PI*2);
-        ctx.fill();
-
-        // Atualiza HUD texto
-        document.getElementById('stats').innerText = `HP: ${p.hp} | LVL: ${p.lvl}`;
-    }
-};
-
-// --- LÓGICA DE COMBATE SIMPLES ---
-const Combat = {
-    attack: function() {
-        const dmg = 5 + Math.floor(Math.random() * 5);
-        State.currentEnemy.hp -= dmg;
-        document.getElementById('combat-msg').innerText = `Você causou ${dmg} de dano!`;
-        
-        if(State.currentEnemy.hp <= 0) {
-            alert("Você venceu!");
-            State.mode = 'EXPLORE';
-            document.getElementById('combat-modal').style.display = 'none';
-            Draw.render();
-        } else {
-            // Turno do inimigo
-            setTimeout(() => {
-                const eDmg = 2 + Math.floor(Math.random() * 5);
-                State.player.hp -= eDmg;
-                document.getElementById('combat-msg').innerText = `Inimigo bateu: ${eDmg} dano!`;
-                if(State.player.hp <= 0) {
-                    alert("GAME OVER");
-                    location.reload();
-                }
-                document.getElementById('enemy-hp').innerText = `HP Inimigo: ${State.currentEnemy.hp}`;
-                Draw.render(); // Atualiza HUD
-            }, 500);
-        }
-    },
-    flee: function() {
-        State.mode = 'EXPLORE';
-        document.getElementById('combat-modal').style.display = 'none';
-        Draw.render();
-    },
-    start: function(type) {
-        State.mode = 'COMBAT';
-        State.currentEnemy = { hp: 30, max: 30, name: type };
-        
-        document.getElementById('combat-modal').style.display = 'flex';
-        document.getElementById('combat-msg').innerText = `Um ${type} selvagem apareceu!`;
-        document.getElementById('enemy-hp').innerText = "HP: 30/30";
-        
-        if(type === 'BOSS') {
-            document.getElementById('enemy-visual').style.background = '#505';
-            State.currentEnemy.hp = 100;
-        } else {
-            document.getElementById('enemy-visual').style.background = 'red';
-        }
-    }
-};
-
-// --- GAME LOOP & CONTROLES ---
-const Game = {
-    init: function() {
-        try {
-            Map.init();
-            Draw.init();
-            
-            // Detecta se é mobile para mostrar botões
-            if(/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                document.getElementById('mobile-controls').style.display = 'block';
-            }
-
-            // Bind Teclado
-            window.addEventListener('keydown', (e) => this.input(e.key));
-
-            // Desenha a primeira vez
-            Draw.render();
-            console.log("Jogo
+                if(wx >= 0 && wx < CFG.MAP_S && wy >= 0 && wy < CFG
