@@ -1,145 +1,232 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RPG Terras Perdidas</title>
-<link rel="manifest" href="manifest.json">
-<style>
-body { background:#0d0d0d; color:#fff; font-family:Arial; text-align:center }
-button { width:90%; padding:12px; margin:6px; font-size:16px }
-#map { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin:10px }
-.tile { padding:12px; border:1px solid #444 }
-.player { background:#2ecc71 }
-.enemy { background:#e74c3c }
-.boss { background:#8e44ad }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RPG Clown - A Jornada do Riso</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#222">
+    <style>
+        /* --- ESTILO PIXEL ART & UI --- */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            background-color: #111;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            color: white;
+            touch-action: none; /* Previne zoom no celular */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            image-rendering: pixelated; /* Mantém o pixel art nítido */
+            border: 2px solid #444;
+            background-color: #000;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            pointer-events: none; /* Deixa clicar no canvas */
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        /* Painel de Combate */
+        #combat-screen {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            pointer-events: auto;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .combat-sprite {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+
+        /* Animações de Combate */
+        .shake { animation: shake 0.5s; }
+        .attack-anim { animation: lunge 0.2s forwards; }
+        .damage-text { color: red; font-size: 20px; position: absolute; animation: floatUp 1s forwards; }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            50% { transform: translate(-3px, 0px) rotate(1deg); }
+            100% { transform: translate(1px, -1px) rotate(0deg); }
+        }
+        @keyframes lunge { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
+
+        .btn {
+            background: #333;
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 10px;
+            font-family: inherit;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:active { background: #555; }
+
+        /* Dialog Box */
+        #dialog-box {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 5%;
+            width: 90%;
+            background: #fff;
+            color: #000;
+            border: 4px solid #f00;
+            padding: 10px;
+            font-size: 12px;
+            pointer-events: auto;
+        }
+        
+        /* Controles Móveis */
+        #mobile-controls {
+            display: none; /* Ativado via JS se for mobile */
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            pointer-events: auto;
+        }
+        .d-pad-btn {
+            width: 50px; height: 50px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            font-size: 20px;
+        }
+
+    </style>
 </head>
 <body>
 
-<h2>🗺️ RPG Terras Perdidas</h2>
-<p id="text"></p>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
 
-<div id="map"></div>
-<div id="buttons"></div>
+    <div class="ui-layer">
+        <div class="hud">
+            <span id="player-stats">LVL: 1 | HP: 100/100 | XP: 0</span>
+            <span id="weapon-display">Arma: Nariz de Espuma</span>
+        </div>
+        <div id="toast-msg" style="align-self: center; color: yellow; opacity: 0; transition: opacity 1s;">Jogo Salvo!</div>
+    </div>
+
+    <div id="combat-screen">
+        <h2 style="color:red">BATALHA!</h2>
+        <div id="enemy-display" style="text-align: center;">
+            <div id="enemy-sprite" class="combat-sprite" style="background: red;"></div> <p id="enemy-name">Mímico Triste</p>
+            <div style="width: 100px; height: 10px; background: #333; margin: 0 auto;">
+                <div id="enemy-hp-bar" style="width: 100%; height: 100%; background: red;"></div>
+            </div>
+        </div>
+        <div id="combat-log" style="margin: 20px; font-size: 10px; height: 40px; color: #aaa;"></div>
+        <div id="combat-actions">
+            <button class="btn" onclick="Game.combat.playerAttack()">Atacar</button>
+            <button class="btn" onclick="Game.combat.useItem()">Curar (Poção)</button>
+            <button class="btn" onclick="Game.combat.flee()">Fugir</button>
+        </div>
+    </div>
+
+    <div id="dialog-box" onclick="this.style.display='none'">
+        <p id="dialog-text">Olá, palhaço!</p>
+        <small>(Toque para fechar)</small>
+    </div>
+
+    <div id="mobile-controls">
+        <div style="display:flex; justify-content:center;"><button class="d-pad-btn" onclick="Game.input.handle('ArrowUp')">▲</button></div>
+        <div style="display:flex; gap:50px">
+            <button class="d-pad-btn" onclick="Game.input.handle('ArrowLeft')">◀</button>
+            <button class="d-pad-btn" onclick="Game.input.handle('ArrowRight')">▶</button>
+        </div>
+        <div style="display:flex; justify-content:center;"><button class="d-pad-btn" onclick="Game.input.handle('ArrowDown')">▼</button></div>
+    </div>
+</div>
 
 <script>
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+/**
+ * RPG CLOWN - ENGINE
+ * Autor: Gemini AI
+ */
 
-let player = JSON.parse(localStorage.getItem("player")) || null;
-let pos = JSON.parse(localStorage.getItem("pos")) || 0;
+const CONSTANTS = {
+    TILE_SIZE: 32,
+    VIEW_WIDTH: 15, // Tiles visíveis horizontalmente
+    VIEW_HEIGHT: 11, // Tiles visíveis verticalmente
+    FOG_RADIUS: 5
+};
 
-const map = [
- "P","E",".",".","E",
- ".",".","E",".",".",
- ".","E",".","E",".",
- ".",".",".",".",".",
- "E",".",".","B","."
-];
+// --- SISTEMA DE DADOS (ITEMS, INIMIGOS) ---
+const ITEMS = {
+    weapon1: { name: "Nariz de Espuma", dmg: 5, type: 'weapon' },
+    weapon2: { name: "Marreta de Borracha", dmg: 12, type: 'weapon' },
+    armor1:  { name: "Sapatos Gigantes", def: 2, type: 'armor' },
+    potion:  { name: "Torta de Creme", heal: 30, type: 'consumable' }
+};
 
-function save() {
- localStorage.setItem("player", JSON.stringify(player));
- localStorage.setItem("pos", JSON.stringify(pos));
-}
+const ENEMIES = {
+    slime: { name: "Mímico Triste", hp: 30, maxHp: 30, atk: 4, xp: 10, color: '#888' },
+    skeleton: { name: "Esqueleto Malabarista", hp: 60, maxHp: 60, atk: 8, xp: 25, color: '#eee' },
+    boss: { name: "O Grande Depresso", hp: 200, maxHp: 200, atk: 15, xp: 500, color: '#505', isBoss: true }
+};
 
-function setButtons(btns){
- const div=document.getElementById("buttons");
- div.innerHTML="";
- btns.forEach(b=>{
-  const btn=document.createElement("button");
-  btn.innerText=b.text;
-  btn.onclick=b.action;
-  div.appendChild(btn);
- });
-}
-
-function drawMap(){
- const div=document.getElementById("map");
- div.innerHTML="";
- map.forEach((t,i)=>{
-  const d=document.createElement("div");
-  d.className="tile";
-  if(i===pos)d.classList.add("player");
-  if(t==="E")d.classList.add("enemy");
-  if(t==="B")d.classList.add("boss");
-  div.appendChild(d);
- });
-}
-
-function chooseClass(c){
- if(c==="Guerreiro")player={hp:120,atk:15,inv:["Poção"],max:120};
- if(c==="Mago")player={hp:90,atk:22,inv:["Poção"],max:90};
- if(c==="Arqueiro")player={hp:100,atk:18,inv:["Poção"],max:100};
- save(); game();
-}
-
-function game(){
- drawMap();
- update(`❤️ ${player.hp}/${player.max} | 🎒 ${player.inv.join(", ")}`);
- setButtons([
-  {text:"⬅️",action:()=>move(-1)},
-  {text:"➡️",action:()=>move(1)},
-  {text:"⬆️",action:()=>move(-5)},
-  {text:"⬇️",action:()=>move(5)},
-  {text:"🧪 Usar Poção",action:usePotion}
- ]);
-}
-
-function move(n){
- let newPos=pos+n;
- if(newPos<0||newPos>=map.length)return;
- pos=newPos;
- if(map[pos]==="E") battle(false);
- if(map[pos]==="B") battle(true);
- save(); game();
-}
-
-function usePotion(){
- const i=player.inv.indexOf("Poção");
- if(i>-1){
-  player.hp=Math.min(player.hp+30,player.max);
-  player.inv.splice(i,1);
-  save(); game();
- }
-}
-
-function battle(isBoss){
- let enemy=isBoss?
-  {hp:160,atk:20,phase:1}:
-  {hp:60,atk:10};
-
- while(enemy.hp>0 && player.hp>0){
-  enemy.hp-=player.atk;
-  if(enemy.hp<=0)break;
-
-  // IA do chefe
-  if(isBoss && enemy.hp<80 && enemy.phase===1){
-    enemy.atk+=10; enemy.phase=2;
-  }
-
-  player.hp-=enemy.atk;
- }
-
- if(player.hp<=0){
-  localStorage.clear();
-  location.reload();
- }else{
-  map[pos]=".";
-  if(Math.random()>0.5)player.inv.push("Poção");
- }
- save();
-}
-
-function update(t){ document.getElementById("text").innerText=t }
-
-if(!player){
- setButtons([
-  {text:"🛡️ Guerreiro",action:()=>chooseClass("Guerreiro")},
-  {text:"🔥 Mago",action:()=>chooseClass("Mago")},
-  {text:"🏹 Arqueiro",action:()=>chooseClass("Arqueiro")}
- ]);
- update("Escolha sua classe");
-}else game();
-</script>
-</body>
-</html>
+// --- ESTADO DO JOGO & SAVE SYSTEM ---
+const GameState = {
+    player: {
+        x: 2, y: 2,
+        level: 1, xp: 0, nextLevelXp: 50,
+        hp: 100, maxHp: 100,
+        atk: 5, def: 0,
+        inventory: ['potion', 'potion'],
+        equipment: { weapon: 'weapon1', armor: 'armor1' },
+        quests: { defeatedBoss: false }
+    },
+    map: [], // Será gerado
+    mode: 'EXPLORE', // EXPLORE, COMBAT, DIALOG
+    width: 50,
+    height: 50,
+    
+    save: function() {
+        localStorage.setItem('rpgClownSave', JSON.stringify(this.player));
+        const toast = document.getElementById('toast-msg');
+        toast.style.opacity = 1;
+        setTimeout(() => toast.style.opacity = 0, 2000);
+    },
+    load: function() {
+        const data = localStorage.getItem('rpgClownSave');
+        if(data) this.player = JSON.parse(data);
+    }
